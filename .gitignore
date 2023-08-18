@@ -244,3 +244,4 @@ deprecated/
 exe_maker.py
 encryptor.py
 /src/config.py
+/src/github_release.py
