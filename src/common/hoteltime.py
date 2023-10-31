@@ -1,113 +1,140 @@
 import re
 import time
-import datetime
+from datetime import datetime, timedelta
 from common.partner_center import PartnerCenter
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from util.check_rooms import check_rooms
 
 
 class HotelTime(PartnerCenter):
     def __init__(self, driver, res_list, start, end, account):
         super().__init__(driver, res_list, start, end, account)
-        self.login_url = "https://hotel.gcpartner.kr/login"
+        self.login_url = "https://partner.goodchoice.kr/login"
         self.reg_date = re.compile(r"^\d{1,4}\.\d{1,2}\.\d{1,2}")
         self.run()
 
     def run(self):
-        self.login(self.login_url, "#loginForm_uid", "#loginForm_upw", ".login-button-box", "호텔타임")
+        self.login(self.login_url, "form > div:nth-child(3) > div > input[type=text]",
+                   "form > div:nth-child(4) > div > input[type=password]", "form > div:nth-child(6) > button", "호텔타임")
         time.sleep(0.5)
 
         print("데이터 불러 오는 중..", end=" ", flush=True)
-        self.driver.get("https://hotel.gcpartner.kr/reservations/reservation-list")
-        time.sleep(0.5)
+        self.driver.get("https://partner.goodchoice.kr/reservations/reservation-list")
+        time.sleep(2)
 
-        self.select_filters()  # 필터 설정
+        self.select_filters(3)  # 필터 설정 1: 10개씩 보기, 2: 20개씩 보기, 3: 50개씩 보기
         self.click_calender()  # 날짜 선택
-        time.sleep(1)
 
-        page_items = self.driver.find_elements(By.CSS_SELECTOR, ".ant-spin-container > ul > li")
-        len_pages = int(page_items[len(page_items) - 2].text)  # 총 페이지 수
-
+        page_items = self.driver.find_elements(By.CSS_SELECTOR, "div.css-16l3vya.euxpggr3 > button")
+        len_pages = len(page_items)-2  # 총 페이지 수
         if len_pages > 1:
-            for i in range(1, len_pages + 1):
-                page_items = self.driver.find_elements(By.CSS_SELECTOR,
-                                                       ".ant-spin-container > ul > li")  # page_items 업데이트
-                for idx in range(1, len(page_items) - 1):
-                    if int(page_items[idx].text) == i:
-                        page_items[idx].click()
-                        self.collect_data()
+            for i, page in enumerate(page_items):
+                if i == 1:
+                    self.collect_data()  # 데이터 취합
+                elif 1 < i <= len_pages:
+                    page.click()
+                    self.collect_data()  # 데이터 취합
         else:
             self.collect_data()
         print("[완료]")
 
     def collect_data(self):
-        time.sleep(3)  # 예약 상태 fetch 대기 시간
-        time_table_rows_1 = self.driver.find_elements(By.CSS_SELECTOR,
-                                                      "div.ant-table-fixed-left > div > div > table > tbody > tr")  # 예약 상태가 있는 테이블
-        time.sleep(0.5)
-        time_table_rows_2 = self.driver.find_elements(By.CSS_SELECTOR,
-                                                      "div.ant-table-scroll > div > table > tbody > tr")  # 체크인, 체크아웃, 룸타입 등이 있는 테이블
-        time.sleep(0.5)
+        # time.sleep(1)  # 예약 상태 fetch 대기 시간
+        # 예약상태, 통합예약번호, 예약자 정보 데이터
+        time_table_value_1 = "div.Table__TableStd-sc-6q720t-0.MMEcW.table-template.fixed-table > div.TableBody__TableBodyStd-sc-1gazdle-0.kXyBkh.table-template-body > ul"
+        # 상품명 및 판매유형, 입실/퇴실 일시, 금액 및 할인정보 등 데이터
+        time_table_value_2 = "div.styled__FixedScrollWrapStd-sc-ljl4di-10.kFajS > div > div.TableBody__TableBodyStd-sc-1gazdle-0.kXyBkh.table-template-body > ul"
+        # 예약 상태가 있는 테이블
+        time_table_rows_1: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, time_table_value_1)
+        # time.sleep(0.5)
+        time_table_rows_2: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, time_table_value_2)
+        # time.sleep(0.5)
         cancel_rows = []
-        # nl = "\n"
+        nl = "\n"  # newline
 
         # 예약취소 index 찾아서 cancel_rows list에 append 하기
-        for i, tr in enumerate(time_table_rows_1):
-            status = tr.find_elements(By.CSS_SELECTOR, "td")
-            if "취소" in status[0].text:
+        for i, ul in enumerate(time_table_rows_1):  # type: int, WebElement
+            status = ul.find_elements(By.CSS_SELECTOR, "li")
+            # print(status[0].text.split(nl)[0], status[1].text.split(nl)[0], status[2].text.split(nl)[0])  # 에약 목록 출력
+            if status[0].text.split(nl)[0] == "예약취소":
+                # print(status[0].text.split(nl)[0], status[1].text.split(nl)[0], status[2].text.split(nl)[0])  # 에약취소 목록 출력
                 cancel_rows.append(i)
 
         # 예약취소 row index를 제외한 데이터 취합하기
-        for i, tr in enumerate(time_table_rows_2):
-            # status_dec = time_table_rows_1[i].find_elements(By.CSS_SELECTOR, "td")
-            room_dec = tr.find_elements(By.CSS_SELECTOR, "td")
+        for i, ul in enumerate(time_table_rows_2):  # type: int, WebElement
+            room_dec = ul.find_elements(By.CSS_SELECTOR, "li")
+            # 예) 스위트 트윈 [2인조식포함, 넷플릭스 시청가능] 2023.11.04 (토) 20:00 2023.11.05 (일) 12:00
+            # print(room_dec[0].text.split(nl)[0], room_dec[1].text.split(nl)[0], room_dec[1].text.split(nl)[1])
             if i not in cancel_rows:
-                # print(f"{status_dec[0].text.replace(nl, '')} {status_dec[3].text.split(nl)[0]}({status_dec[3].text.split(nl)[1]}), {room_dec[4].text}, {room_dec[5].text}, {room_dec[7].text}")
-                t1 = datetime.datetime.strptime(self.reg_date.search(room_dec[4].text).group().replace(".", ""),
-                                                "%Y%m%d")
-                t2 = datetime.datetime.strptime(self.reg_date.search(room_dec[5].text).group().replace(".", ""),
-                                                "%Y%m%d")
+                # 예) 예약확정 이름 디럭스 [2인조식포함, 넷플릭스 시청가능], 2023.10.31 (화) 18:00 2023.11.01 (수) 12:00
+                # print(f"{status_dec[0].text.split(nl)[0]} {status_dec[2].text.split(nl)[0]} {room_dec[0].text.split(nl)[0]}, {room_dec[1].text.split(nl)[0]} {room_dec[1].text.split(nl)[1]}")
+                t1 = datetime.strptime(
+                    self.reg_date.search(room_dec[1].text.split(nl)[0]).group().replace(".", ""), "%Y%m%d")
+                t2 = datetime.strptime(
+                    self.reg_date.search(room_dec[1].text.split(nl)[1]).group().replace(".", ""), "%Y%m%d")
                 for idx in range((t2 - t1).days):
-                    check_in = t1 + datetime.timedelta(days=idx)
-                    check_rooms(str(check_in.date()), room_dec[7].text, self.res_list)
-            # else:
-            #     print(f"{status_dec[0].text.replace(nl, '')}, {status_dec[3].text.split(nl)[0]}({status_dec[3].text.split(nl)[1]}), {room_dec[4].text}, {room_dec[5].text}, {room_dec[7].text}")
+                    check_in = t1 + timedelta(days=idx)
+                    check_rooms(str(check_in.date()), room_dec[0].text.split(nl)[0], self.res_list)
 
     def click_calender(self):
-        self.driver.find_element(By.CSS_SELECTOR, ".ant-calendar-picker-input").click()  # 캘린더 클릭
-        time.sleep(0.5)
-        data = self.driver.find_elements(By.CSS_SELECTOR,
-                                         ".ant-calendar-range-part > div:nth-child(2) > div.ant-calendar-body > table > tbody > tr")
+        calendar_sel = "div.SearchList__DivStd-sc-p1o8a6-0.evgBdV > div.Box_picker__Yz68i"
+        data_sel = "div.react-calendar.yeogi-calendar > div > div > div > div > div.react-calendar__month-view__days > button"
+        next_month_button = "div.Navigation_navigation__h8sDM > div > button:nth-child(3)"
+        next_month = 1 if self.start.month != self.end.month else 0
         clicked = 0
 
-        for tr in data:
-            for td in tr.find_elements(By.CSS_SELECTOR, "td"):
-                title = td.get_attribute("title")
-                if title == self.start.strftime("%Y년 %#m월 %#d일") and clicked == 0:
-                    clicked += 1
-                    td.click()
-                if title == self.end.strftime("%Y년 %#m월 %#d일") and clicked == 1:
-                    td.click()
-                    break
-            else:
-                continue
-            break
+        self.driver.find_element(By.CSS_SELECTOR, calendar_sel).click()  # 캘린더 클릭
+        time.sleep(0.5)
 
-    def select_filters(self):
+        while True:
+            data: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, data_sel)
+            if clicked == 0:
+                for date in data:
+                    calendar_date = date.find_element(By.CSS_SELECTOR, "abbr").get_attribute("aria-label")
+                    if calendar_date == self.start.strftime("%Y년 %#m월 %#d일") and clicked == 0:
+                        clicked += 1
+                        date.click()
+                        if next_month == 1:
+                            self.driver.find_element(By.CSS_SELECTOR, next_month_button).click()  # 다음달 클릭
+                            break
+                    if calendar_date == self.end.strftime("%Y년 %#m월 %#d일") and clicked == 1 and next_month == 0:
+                        clicked += 1
+                        date.click()
+                        self.driver.find_element(By.CSS_SELECTOR,
+                                                 "button.btn-save.css-17for9g.es5gqx49").click()  # 캘린더 적용 클릭
+                        break
+                continue
+            if next_month == 1 and clicked == 1:
+                for date in data:
+                    calendar_date = date.find_element(By.CSS_SELECTOR, "abbr").get_attribute("aria-label")
+                    if calendar_date == self.end.strftime("%Y년 %#m월 %#d일") and clicked == 1:
+                        clicked += 1
+                        date.click()
+                        break
+                self.driver.find_element(By.CSS_SELECTOR, "button.btn-save.css-17for9g.es5gqx49").click()  # 캘린더 적용 클릭
+                break
+            else:
+                break
+        time.sleep(0.5)
+
+    def select_filters(self, display):
+        # CSS SELECTOR
+        st_check_in = "div.css-nu5mji.eifwycs3"
+        st_date = "div.SearchList__DivStd-sc-p1o8a6-0.evgBdV > div:nth-child(2)"
+        st_display = "div.styled__RightFilterDiv-sc-ljl4di-7.hNmXkV > div.css-gauqmr.eifwycs3"
+
         # 입실일 기준 선택
-        self.driver.find_element(By.CSS_SELECTOR, "div.range-widget > div:nth-child(1)").click()
-        self.driver.find_element(By.CSS_SELECTOR,
-                                 "body > div:nth-child(4) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(1)").click()
+        self.driver.find_element(By.CSS_SELECTOR, st_check_in).click()
+        self.driver.find_element(By.CSS_SELECTOR, f"{st_check_in} > div > ul > li:nth-child(3)").click()  # 투숙일
+        time.sleep(1)
+
+        # 날짜 기준 선택
+        self.driver.find_element(By.CSS_SELECTOR, st_date).click()
+        self.driver.find_element(By.CSS_SELECTOR, f"{st_date} > div > ul > li:nth-child(4)").click()  # 직접 선택
+        time.sleep(1)
 
         # 표시 개수
-        self.driver.find_element(By.CSS_SELECTOR, "div.filter-box > div:nth-child(1)").click()
-        # driver.find_element(By.CSS_SELECTOR, "body > div:nth-child(5) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(1)").click()  # 10개씩 보기
-        # driver.find_element(By.CSS_SELECTOR, "body > div:nth-child(5) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(2)").click()  # 20개씩 보기
-        # driver.find_element(By.CSS_SELECTOR, "body > div:nth-child(5) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(3)").click()  # 30개씩 보기
-        # driver.find_element(By.CSS_SELECTOR, "body > div:nth-child(5) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(4)").click()  # 40개씩 보기
-        self.driver.find_element(By.CSS_SELECTOR,
-                                 "body > div:nth-child(5) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(5)").click()  # 50개씩 보기
-
-        # 예약상태 확정
-        # driver.find_element(By.CSS_SELECTOR, "div.filter-box > div:nth-child(2)").click()
-        # driver.find_element(By.CSS_SELECTOR, "body > div:nth-child(6) > div > div > div.ant-select-dropdown-content > ul > li:nth-child(2)").click()
+        self.driver.find_element(By.CSS_SELECTOR, st_display).click()
+        self.driver.find_element(By.CSS_SELECTOR, f"{st_display} > div > ul > li:nth-child({display})").click()
+        time.sleep(1)

@@ -1,11 +1,12 @@
 import time
+from datetime import date
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.remote.webdriver import WebDriver
 from util.color import Color
 
 
 class PartnerCenter:
-    def __init__(self, driver: WebDriver, res_list, start, end, account):
+    def __init__(self, driver: WebDriver, res_list, start: date, end: date, account):
         self.driver = driver
         self.res_list = res_list
         self.start = start
@@ -25,6 +26,7 @@ class PartnerCenter:
         print(f"{Color.CYAN}{text}{Color.END} 파트너센터 로그인 중..", end=' ', flush=True)
         _id, _pw = self.account.values()
         self.driver.get(url)
+        time.sleep(0.5)
         self.driver.find_element(By.CSS_SELECTOR, id_selector).send_keys(_id)
         time.sleep(0.5)
         self.driver.find_element(By.CSS_SELECTOR, pw_selector).send_keys(_pw)
