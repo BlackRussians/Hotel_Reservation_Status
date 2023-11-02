@@ -41,44 +41,38 @@ class HotelTime(PartnerCenter):
 
     def collect_data(self):
         # time.sleep(1)  # 예약 상태 fetch 대기 시간
-        # 예약상태, 통합예약번호, 예약자 정보 데이터
-        time_table_value_1 = "div.Table__TableStd-sc-6q720t-0.MMEcW.table-template.fixed-table > div.TableBody__TableBodyStd-sc-1gazdle-0.kXyBkh.table-template-body > ul"
-        # 상품명 및 판매유형, 입실/퇴실 일시, 금액 및 할인정보 등 데이터
-        time_table_value_2 = "div.styled__FixedScrollWrapStd-sc-ljl4di-10.kFajS > div > div.TableBody__TableBodyStd-sc-1gazdle-0.kXyBkh.table-template-body > ul"
+        # 예약상태, 통합예약번호, 예약자 정보, 상품명 및 판매유형, 입실/퇴실 일시, 금액 및 할인정보 등 데이터
+        time_table_value = "div.fix.css-1u0qfsj.e1kggxuk2 > table > tbody > tr"
         # 예약 상태가 있는 테이블
-        time_table_rows_1: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, time_table_value_1)
-        # time.sleep(0.5)
-        time_table_rows_2: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, time_table_value_2)
-        # time.sleep(0.5)
+        time_table_rows: list[WebElement] = self.driver.find_elements(By.CSS_SELECTOR, time_table_value)
         cancel_rows = []
         nl = "\n"  # newline
 
         # 예약취소 index 찾아서 cancel_rows list에 append 하기
-        for i, ul in enumerate(time_table_rows_1):  # type: int, WebElement
-            status = ul.find_elements(By.CSS_SELECTOR, "li")
+        for i, tr in enumerate(time_table_rows):  # type: int, WebElement
+            status = tr.find_elements(By.CSS_SELECTOR, "td")
             # print(status[0].text.split(nl)[0], status[1].text.split(nl)[0], status[2].text.split(nl)[0])  # 에약 목록 출력
             if status[0].text.split(nl)[0] == "예약취소":
                 # print(status[0].text.split(nl)[0], status[1].text.split(nl)[0], status[2].text.split(nl)[0])  # 에약취소 목록 출력
                 cancel_rows.append(i)
 
         # 예약취소 row index를 제외한 데이터 취합하기
-        for i, ul in enumerate(time_table_rows_2):  # type: int, WebElement
-            room_dec = ul.find_elements(By.CSS_SELECTOR, "li")
+        for i, tr in enumerate(time_table_rows):  # type: int, WebElement
+            room_dec = tr.find_elements(By.CSS_SELECTOR, "td")
             # 예) 스위트 트윈 [2인조식포함, 넷플릭스 시청가능] 2023.11.04 (토) 20:00 2023.11.05 (일) 12:00
-            # print(room_dec[0].text.split(nl)[0], room_dec[1].text.split(nl)[0], room_dec[1].text.split(nl)[1])
+            # print(room_dec[3].text.split(nl)[0], room_dec[4].text.split(nl)[0], room_dec[4].text.split(nl)[1])
             if i not in cancel_rows:
                 # 예) 예약확정 이름 디럭스 [2인조식포함, 넷플릭스 시청가능], 2023.10.31 (화) 18:00 2023.11.01 (수) 12:00
-                # print(f"{status_dec[0].text.split(nl)[0]} {status_dec[2].text.split(nl)[0]} {room_dec[0].text.split(nl)[0]}, {room_dec[1].text.split(nl)[0]} {room_dec[1].text.split(nl)[1]}")
                 t1 = datetime.strptime(
-                    self.reg_date.search(room_dec[1].text.split(nl)[0]).group().replace(".", ""), "%Y%m%d")
+                    self.reg_date.search(room_dec[4].text.split(nl)[0]).group().replace(".", ""), "%Y%m%d")
                 t2 = datetime.strptime(
-                    self.reg_date.search(room_dec[1].text.split(nl)[1]).group().replace(".", ""), "%Y%m%d")
+                    self.reg_date.search(room_dec[4].text.split(nl)[1]).group().replace(".", ""), "%Y%m%d")
                 for idx in range((t2 - t1).days):
                     check_in = t1 + timedelta(days=idx)
-                    check_rooms(str(check_in.date()), room_dec[0].text.split(nl)[0], self.res_list)
+                    check_rooms(str(check_in.date()), room_dec[3].text.split(nl)[0], self.res_list)
 
     def click_calender(self):
-        calendar_sel = "div.SearchList__DivStd-sc-p1o8a6-0.evgBdV > div.Box_picker__Yz68i"
+        calendar_sel = "div.Box_picker__Yz68i"
         data_sel = "div.react-calendar.yeogi-calendar > div > div > div > div > div.react-calendar__month-view__days > button"
         next_month_button = "div.Navigation_navigation__h8sDM > div > button:nth-child(3)"
         next_month = 1 if self.start.month != self.end.month else 0
@@ -102,7 +96,7 @@ class HotelTime(PartnerCenter):
                         clicked += 1
                         date.click()
                         self.driver.find_element(By.CSS_SELECTOR,
-                                                 "button.btn-save.css-17for9g.es5gqx49").click()  # 캘린더 적용 클릭
+                                                 "div.css-z127pw.ec44zn12 > button:nth-child(2)").click()  # 캘린더 적용 클릭
                         break
                 continue
             if next_month == 1 and clicked == 1:
@@ -120,8 +114,8 @@ class HotelTime(PartnerCenter):
 
     def select_filters(self, display):
         # CSS SELECTOR
-        st_check_in = "div.css-nu5mji.eifwycs3"
-        st_date = "div.SearchList__DivStd-sc-p1o8a6-0.evgBdV > div:nth-child(2)"
+        st_check_in = "div.css-1kiy3dg.ehynccb1 > div:nth-child(1)"
+        st_date = "div.css-1kiy3dg.ehynccb1 > div:nth-child(2)"
         st_display = "div.styled__RightFilterDiv-sc-ljl4di-7.hNmXkV > div.css-gauqmr.eifwycs3"
 
         # 입실일 기준 선택
