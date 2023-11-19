@@ -25,6 +25,7 @@ class HotelTime(PartnerCenter):
 
         self.select_filters(3)  # 필터 설정 1: 10개씩 보기, 2: 20개씩 보기, 3: 50개씩 보기
         self.click_calender()  # 날짜 선택
+        time.sleep(1)
 
         page_items = self.driver.find_elements(By.CSS_SELECTOR, "div.css-16l3vya.euxpggr3 > button")
         len_pages = len(page_items)-2  # 총 페이지 수
@@ -106,7 +107,7 @@ class HotelTime(PartnerCenter):
                         clicked += 1
                         date.click()
                         break
-                self.driver.find_element(By.CSS_SELECTOR, "button.btn-save.css-17for9g.es5gqx49").click()  # 캘린더 적용 클릭
+                self.driver.find_element(By.CSS_SELECTOR, "div.css-cqouxt.ec44zn14 > div:nth-child(2) > button:nth-child(2)").click()  # 캘린더 적용 클릭
                 break
             else:
                 break
