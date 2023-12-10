@@ -5,7 +5,7 @@ from common.hoteltime import HotelTime
 from common.coolstay import CoolStay
 from util.chrome import web_driver
 from util.color import Color
-from util.table import enable_table
+from util.table import enable_table, reset_res_list
 from config import YanoljaAccount, GoodChoiceAccount, HotelTimeAccount, CoolStayAccount
 
 
@@ -21,6 +21,7 @@ class Interface:
         self.start_date = datetime.datetime.now().date()  # 오늘 날짜
         # self.start_date = datetime.date(2023, 2, 16)  # 날짜 직접 지정
         self.end_date = self.start_date + datetime.timedelta(days=14)
+        reset_res_list(self.reservation_list, self.start_date, self.end_date)  # reservation_list 초기화
         self.driver = web_driver()
 
     def main_menu(self):

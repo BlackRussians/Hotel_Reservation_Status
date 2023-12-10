@@ -1,3 +1,4 @@
+import pandas
 import pandas as pd
 
 from tabulate import tabulate
@@ -15,3 +16,16 @@ def enable_table(res_list, start, end):
         columns=date_range
     )
     print(tabulate(df, headers='keys', tablefmt="rounded_outline"))
+
+
+def reset_res_list(res_list, start, end):
+    for date in pandas.date_range(start, periods=(end - start).days + 1):
+        res_list[date.strftime("%Y-%m-%d")] = {
+            "standard": 0,
+            "deluxe": 0,
+            "premium": 0,
+            "premium_twin": 0,
+            "suite": 0,
+            "suite_twin": 0,
+            "royal_suite": 0
+        }

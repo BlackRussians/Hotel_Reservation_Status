@@ -1,15 +1,4 @@
 def check_rooms(date, room, res_list):
-    if date not in res_list:
-        res_list[date] = {
-            "standard": 0,
-            "deluxe": 0,
-            "premium": 0,
-            "premium_twin": 0,
-            "suite": 0,
-            "suite_twin": 0,
-            "royal_suite": 0
-        }
-
     if "스탠다드" in room:
         res_list[date]["standard"] += 1
     elif "디럭스" in room:
